@@ -1,5 +1,6 @@
 const express = require('express');
 const router  = express.Router();
+const { verifyToken, devOnly } = require('../middleware/verifyToken');
 
 // ── Shared email sender helper ─────────────────────────────
 async function sendEmail({ to, subject, html }) {
