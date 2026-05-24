@@ -1,11 +1,47 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const { v4: uuidv4 } = require('uuid');
 const app = express();
+
+// ── Environment variable validation ─────────────────────────
+const requiredEnvVars = ['RESEND_API_KEY'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:');
+  missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
+  console.error('\nPlease set these variables and restart the server.');
+  process.exit(1);
+}
 
 // ── Security headers ───────────────────────────────────────
 app.use(helmet());
+
+// ── Compression ─────────────────────────────────────────────
+app.use(compression());
+
+// ── Request ID middleware ────────────────────────────────────
+app.use((req, res, next) => {
+  req.id = req.headers['x-request-id'] || uuidv4();
+  res.setHeader('X-Request-ID', req.id);
+  
+  const startTime = Date.now();
+  req.startTime = startTime;
+  
+  // Log incoming request
+  console.log(`[${req.id}] ${req.method} ${req.path} - Started`);
+  
+  // Log response when finished
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    console.log(`[${req.id}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+  
+  next();
+});
 
 // ── Rate limiting ──────────────────────────────────────────
 const generalLimiter = rateLimit({
@@ -47,7 +83,7 @@ app.use(cors({
 app.use('/api/', generalLimiter);
 
 // ── Keep-alive ping every 14 minutes ──────────────────────
-const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || 'https://sellnook-backend.onrender.com';
+const BACKEND_URL = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'https://sellnook-backend.onrender.com';
 setInterval(async () => {
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/ping`);
@@ -70,6 +106,43 @@ app.use('/api/offers', require('./api/offers'));
 app.use('/api/promoted', require('./api/promoted'));
 app.use('/api/reviews', require('./api/reviews'));
 app.use('/api/stripe', require('./api/stripe'));
+
+// ── Global error handler ─────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error(`[${req.id || 'unknown'}] Error:`, err);
+  
+  const statusCode = err.statusCode || 500;
+  const errorCode = err.code || 'INTERNAL_ERROR';
+  
+  res.status(statusCode).json({
+    error: err.message || 'An unexpected error occurred',
+    code: errorCode,
+    requestId: req.id
+  });
+});
+
+// ── Global error handler ─────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error(`[${req.id || 'unknown'}] Error:`, err);
+  
+  const statusCode = err.statusCode || 500;
+  const errorCode = err.code || 'INTERNAL_ERROR';
+  
+  res.status(statusCode).json({
+    error: err.message || 'An unexpected error occurred',
+    code: errorCode,
+    requestId: req.id
+  });
+});
+
+// ── 404 handler ─────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    code: 'NOT_FOUND',
+    requestId: req.id
+  });
+});
 
 // ── Daily report — runs every day at 8am UTC ───────────────
 function scheduleDailyReport() {

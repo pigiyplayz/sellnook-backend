@@ -102,7 +102,8 @@ router.get('/:identifier', async (req, res) => {
       totalListings: listings.length,
       totalSales: userData.totalSales || 0,
       rating: userData.rating || null,
-      memberSince: userData.createdAt || null
+      memberSince: userData.createdAt || null,
+    layout: userData.layout || { order: ['banner', 'stats', 'categories', 'featured'], theme: 'modern' }
     };
 
     res.json({ shop, listings });

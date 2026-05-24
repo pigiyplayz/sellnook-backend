@@ -3,6 +3,8 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/verifyToken');
 const { db } = require('../firebase');
 
+const BACKEND_URL = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'https://sellnook-backend.onrender.com';
+
 // ── GET /api/orders/buyer — get all orders for buyer ───────
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
@@ -12,7 +14,7 @@ router.get('/buyer', verifyToken, async (req, res) => {
       .get();
     const orders = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     res.json({ orders });
   } catch (e) {
     console.error('Get buyer orders error:', e);
@@ -29,7 +31,7 @@ router.get('/seller', verifyToken, async (req, res) => {
       .get();
     const orders = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     res.json({ orders });
   } catch (e) {
     console.error('Get seller orders error:', e);
@@ -87,7 +89,6 @@ router.post('/:id/ship', verifyToken, async (req, res) => {
     });
 
     try {
-      const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || 'https://sellnook-backend.onrender.com';
       await fetch(`${BACKEND_URL}/api/email/shipping-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,7 +218,6 @@ router.post('/:id/dispute', verifyToken, async (req, res) => {
     });
 
     try {
-      const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || 'https://sellnook-backend.onrender.com';
       await fetch(`${BACKEND_URL}/api/email/dispute-opened`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -322,7 +322,6 @@ router.post('/create', verifyToken, async (req, res) => {
 
     // Send emails
     try {
-      const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || 'https://sellnook-backend.onrender.com';
       await fetch(`${BACKEND_URL}/api/email/order-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
