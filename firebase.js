@@ -44,7 +44,7 @@ if (process.env.FIREBASE_PRIVATE_KEY) {
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId:  'sellnook-1'
+    projectId: serviceAccount.project_id || 'sellnook-1'
   });
 }
 
