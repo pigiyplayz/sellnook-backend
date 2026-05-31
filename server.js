@@ -12,7 +12,7 @@ const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
   console.error('❌ Missing required environment variables:');
-  missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
+  missingEnvVars.forEach(varName => console.error(`    - ${varName}`));
   console.error('\nPlease set these variables and restart the server.');
   process.exit(1);
 }
@@ -97,7 +97,11 @@ setInterval(async () => {
 app.use('/api/auth', require('./api/auth'));
 app.use('/api/user', require('./api/user'));
 app.use('/api/product', require('./api/product'));
-app.use('/api/email', require('./api/email'));
+
+// FIXED: Destructure the .router object out of your email module to satisfy Express middleware criteria
+const { router: emailRouter } = require('./api/email');
+app.use('/api/email', emailRouter);
+
 app.use('/api/admin', strictLimiter, require('./api/admin')); // extra rate limit on admin
 app.use('/api/orders', require('./api/orders'));
 app.use('/api/shop', require('./api/shop'));
@@ -106,20 +110,6 @@ app.use('/api/offers', require('./api/offers'));
 app.use('/api/promoted', require('./api/promoted'));
 app.use('/api/reviews', require('./api/reviews'));
 app.use('/api/stripe', require('./api/stripe'));
-
-// ── Global error handler ─────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error(`[${req.id || 'unknown'}] Error:`, err);
-  
-  const statusCode = err.statusCode || 500;
-  const errorCode = err.code || 'INTERNAL_ERROR';
-  
-  res.status(statusCode).json({
-    error: err.message || 'An unexpected error occurred',
-    code: errorCode,
-    requestId: req.id
-  });
-});
 
 // ── Global error handler ─────────────────────────────────────
 app.use((err, req, res, next) => {
