@@ -1,8 +1,8 @@
 const admin = require('firebase-admin');
 
 // ── Load service account ───────────────────────────────────
-// Locally:  place serviceAccountKey.json in this folder
-// On Vercel: set FIREBASE_SERVICE_ACCOUNT env variable with the JSON contents
+// Locally: place serviceAccountKey.json in this folder
+// On Render/Production: set environment variables accordingly
 let serviceAccount;
 
 if (process.env.FIREBASE_PRIVATE_KEY) {
@@ -10,7 +10,8 @@ if (process.env.FIREBASE_PRIVATE_KEY) {
   serviceAccount = {
     project_id:   process.env.FIREBASE_PROJECT_ID || 'sellnook-1',
     client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    private_key:  process.env.FIREBASE_PRIVATE_KEY.split('\n').join('\n').trim()
+    // FIXED: Changed to split('\\n') to properly catch literal escaped newlines from hosting providers
+    private_key:  process.env.FIREBASE_PRIVATE_KEY.split('\\n').join('\n').trim()
   };
 } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   // Option B: Single JSON blob
@@ -32,7 +33,7 @@ if (process.env.FIREBASE_PRIVATE_KEY) {
   try {
     serviceAccount = require('./serviceAccountKey.json');
   } catch (e) {
-    console.error('❌  Firebase Secret Missing!');
+    console.error('❌ Firebase Secret Missing!');
     console.error('    1. For Local Dev: Save your key as sellnook-backend/serviceAccountKey.json');
     console.error('    2. For Render/Production: Add FIREBASE_SERVICE_ACCOUNT environment variable with the JSON string.');
     process.exit(1);
